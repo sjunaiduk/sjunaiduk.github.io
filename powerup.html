@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+</head>
+<body>
+    <script>
+        console.log('PowerUp wrapper loaded');
+        console.log('TrelloPowerUp available:', typeof TrelloPowerUp !== 'undefined');
+        
+        TrelloPowerUp.initialize({
+          'board-buttons': function(t, options) {
+            console.log('Board buttons requested');
+            return [{
+              text: 'CSV Import',
+              callback: function(t) {
+                console.log('CSV Import button clicked');
+                return t.popup({
+                  title: 'CSV Card Import',
+                  url: './card-creator.html',
+                  height: 600,
+                  width: 800
+                });
+              }
+            }];
+          }
+        });
+        
+        console.log('PowerUp initialized successfully');
+    </script>
+</body>
+</html>
