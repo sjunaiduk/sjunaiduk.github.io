@@ -14,10 +14,11 @@
             font-size: 14px;
         }
         
-.container {
-    max-width: 800px;
-    margin: 0 auto;
-}
+        .container {
+            max-width: 95%;
+            margin: 0 auto;
+        }
+        
         .card {
             background: white;
             border-radius: 8px;
@@ -359,7 +360,7 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
     <script>
         // Initialize with iframe context
         const t = TrelloPowerUp.iframe({
-            appKey: '1929f0b300e04cf71f3af2ecf9bee287', // Replace with your actual API key
+            appKey: 'YOUR_API_KEY_HERE', // Replace with your actual API key
             appName: 'CSV Import Power-Up'
         });
         
@@ -507,7 +508,9 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
                 
                 // Get members
                 try {
-                    boardData.members = await t.board('members');
+                    const memberData = await t.board('members');
+                    // Handle both direct array and object with members property
+                    boardData.members = Array.isArray(memberData) ? memberData : (memberData.members || []);
                     console.log('Members loaded:', boardData.members);
                 } catch (e) {
                     console.log('Members not available');
@@ -929,12 +932,15 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
                 
                 cardData.idMembers = [];
                 
+                // Ensure boardData.members is an array
+                const members = Array.isArray(boardData.members) ? boardData.members : [];
+                
                 for (const email of memberEmails) {
-                    const member = boardData.members.find(m => 
-                        m.email && m.email.toLowerCase() === email.toLowerCase()
+                    const member = members.find(m => 
+                        m && m.email && m.email.toLowerCase() === email.toLowerCase()
                     );
                     
-                    if (member) {
+                    if (member && member.id) {
                         cardData.idMembers.push(member.id);
                     }
                 }
