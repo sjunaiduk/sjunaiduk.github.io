@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Authorize CSV Import</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            text-align: center;
+        }
+        .btn {
+            background: #026aa7;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .btn:hover {
+            background: #0079bf;
+        }
+    </style>
+</head>
+<body>
+    <h3>Authorize CSV Import</h3>
+    <p>Click below to authorize this Power-Up to access your Trello boards and create cards.</p>
+    <button id="authorize" class="btn">Authorize</button>
+
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+    <script>
+        var t = TrelloPowerUp.iframe({
+            appKey: 'YOUR_API_KEY_HERE', // Same API key as in powerup.html
+            appName: 'CSV Import Power-Up'
+        });
+
+        document.getElementById('authorize').addEventListener('click', function() {
+            t.getRestApi()
+                .authorize({ 
+                    scope: 'read,write' 
+                })
+                .then(function(token) {
+                    console.log('Authorization successful');
+                    return t.set('member', 'private', 'token', token);
+                })
+                .then(function() {
+                    t.closePopup();
+                })
+                .catch(function(error) {
+                    console.error('Authorization failed:', error);
+                    alert('Authorization failed. Please try again.');
+                });
+        });
+    </script>
+</body>
+</html>
