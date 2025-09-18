@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Card Import - Trello Power-Up</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 16px;
+            background: #f4f5f7;
+            color: #172b4d;
+            font-size: 14px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        
+        h1 {
+            color: #026aa7;
+            margin-bottom: 8px;
+            font-size: 20px;
+        }
+        
+        .subtitle {
+            color: #5e6c84;
+            font-size: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #5e6c84;
+            font-size: 12px;
+        }
+        
+        input[type="file"], select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #dfe1e6;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        
+        input[type="file"]:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #026aa7;
+        }
+        
+        .btn {
+            background: #026aa7;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s;
+            margin-right: 8px;
+        }
+        
+        .btn:hover {
+            background: #0079bf;
+        }
+        
+        .btn:disabled {
+            background: #dfe1e6;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #6b778c;
+        }
+        
+        .btn-secondary:hover {
+            background: #5e6c84;
+        }
+        
+        .preview {
+            background: #f8f9fa;
+            border: 1px solid #dfe1e6;
+            border-radius: 4px;
+            padding: 12px;
+            max-height: 200px;
+            overflow: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .preview table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .preview th, .preview td {
+            border: 1px solid #dfe1e6;
+            padding: 4px 8px;
+            text-align: left;
+            white-space: nowrap;
+        }
+        
+        .preview th {
+            background: #ebecf0;
+            font-weight: 600;
+        }
+        
+        .mapping {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .mapping-item {
+            padding: 8px;
+            background: #f4f5f7;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .progress {
+            background: #dfe1e6;
+            border-radius: 4px;
+            overflow: hidden;
+            height: 8px;
+            margin: 8px 0;
+        }
+        
+        .progress-bar {
+            background: #61bd4f;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        
+        .success {
+            background: #e3fcef;
+            border: 1px solid #79e2a0;
+            color: #164b35;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+        
+        .error {
+            background: #ffebe6;
+            border: 1px solid #ff9980;
+            color: #bf2600;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+        
+        .example {
+            background: #e4f0f6;
+            border: 1px solid #b3d7f0;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-line;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #dfe1e6;
+            margin-bottom: 16px;
+        }
+        
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: #5e6c84;
+        }
+        
+        .tab.active {
+            color: #026aa7;
+            border-bottom-color: #026aa7;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .field-mapping {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .field-name {
+            font-weight: 600;
+            min-width: 120px;
+            color: #172b4d;
+        }
+        
+        .arrow {
+            color: #5e6c84;
+        }
+        
+        .csv-column {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>📊 CSV Card Import</h1>
+            <p class="subtitle">Import cards from CSV with custom fields, labels, and assignments</p>
+            
+            <div id="message"></div>
+            
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('upload')">1. Upload CSV</div>
+                <div class="tab" onclick="switchTab('mapping')">2. Field Mapping</div>
+                <div class="tab" onclick="switchTab('import')">3. Import Cards</div>
+            </div>
+            
+            <!-- Upload Tab -->
+            <div id="upload" class="tab-content active">
+                <div class="form-group">
+                    <label for="csvFile">Select CSV File:</label>
+                    <input type="file" id="csvFile" accept=".csv" />
+                </div>
+                
+                <div class="form-group">
+                    <button class="btn" onclick="loadCSV()">Load CSV Preview</button>
+                    <button class="btn btn-secondary" onclick="downloadTemplate()">Download Template</button>
+                </div>
+                
+                <div id="csvPreview" style="display: none;">
+                    <h3>CSV Preview:</h3>
+                    <div class="preview" id="previewContent"></div>
+                </div>
+                
+                <div class="example">
+<strong>Example CSV Format:</strong>
+Card Name,Description,List,Labels,Due Date,Assigned To,Priority,Epic
+Fix login bug,User cannot login with Google,Bug Fixes,"bug,urgent",2024-12-25,john@example.com,High,Authentication
+Add dark mode,Implement dark theme toggle,Features,"feature,ui",,jane@example.com,Medium,UI Improvements
+Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-20,,Low,API Project
+                </div>
+            </div>
+            
+            <!-- Mapping Tab -->
+            <div id="mapping" class="tab-content">
+                <h3>Map CSV Columns to Trello Fields</h3>
+                <p class="subtitle">Choose which CSV columns correspond to which Trello card fields</p>
+                
+                <div class="form-group">
+                    <label for="targetList">Default Target List:</label>
+                    <select id="targetList">
+                        <option value="">Loading lists...</option>
+                    </select>
+                </div>
+                
+                <div id="fieldMappings">
+                    <!-- Dynamic field mappings will be inserted here -->
+                </div>
+                
+                <div class="form-group">
+                    <button class="btn" onclick="previewImport()">Preview Import</button>
+                </div>
+            </div>
+            
+            <!-- Import Tab -->
+            <div id="import" class="tab-content">
+                <h3>Import Cards</h3>
+                <p class="subtitle">Review and execute the card import</p>
+                
+                <div id="importPreview"></div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="createLabels" checked> 
+                        Create new labels if they don't exist
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="skipErrors" checked> 
+                        Skip rows with errors and continue
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <button class="btn" onclick="executeImport()" id="importBtn">Import All Cards</button>
+                </div>
+                
+                <div id="importProgress" style="display: none;">
+                    <div class="progress">
+                        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                    </div>
+                    <div id="progressText">Importing cards...</div>
+                </div>
+                
+                <div id="importResults"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script>
+        // Check if TrelloPowerUp is available
+        if (typeof TrelloPowerUp === 'undefined') {
+            console.error('TrelloPowerUp not loaded. This page must be opened from within Trello.');
+            document.body.innerHTML = `
+                <div style="padding: 20px; text-align: center; font-family: Arial, sans-serif;">
+                    <h2>⚠️ This page must be opened from within Trello</h2>
+                    <p>This is a Trello Power-Up interface that only works when opened from a Trello board.</p>
+                    <p>To test this Power-Up:</p>
+                    <ol style="text-align: left; max-width: 400px; margin: 0 auto;">
+                        <li>Go to your Trello board</li>
+                        <li>Add this Power-Up via the Power-Up menu</li>
+                        <li>Click the CSV Import button that appears</li>
+                    </ol>
+                </div>
+            `;
+            // Stop execution
+            throw new Error('TrelloPowerUp not available');
+        }
+    </script>
+    <script>
+        const t = TrelloPowerUp.iframe();
+        
+        let csvData = null;
+        let csvHeaders = [];
+        let boardData = {
+            lists: [],
+            labels: [],
+            members: [],
+            customFields: []
+        };
+        
+        // Field mapping configuration
+        const trelloFields = {
+            'name': { label: 'Card Name', required: true, type: 'text' },
+            'desc': { label: 'Description', required: false, type: 'text' },
+            'idList': { label: 'List Name', required: false, type: 'list' },
+            'due': { label: 'Due Date', required: false, type: 'date' },
+            'labels': { label: 'Labels', required: false, type: 'labels' },
+            'members': { label: 'Assigned Members', required: false, type: 'members' },
+            'customFields': { label: 'Custom Fields', required: false, type: 'custom' }
+        };
+        
+        // Initialize the Power-Up
+        async function initialize() {
+            try {
+                await loadBoardData();
+                showMessage('Ready to import CSV! Upload a file to get started.', 'success');
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showMessage('Failed to initialize. Please refresh and try again.', 'error');
+            }
+        }
+        
+        // Load board lists, labels, members
+        async function loadBoardData() {
+            try {
+                boardData.lists = await t.lists('id', 'name', 'pos');
+                boardData.lists.sort((a, b) => a.pos - b.pos);
+                
+                const board = await t.board('id', 'name', 'labels');
+                boardData.labels = board.labels || [];
+                
+                try {
+                    boardData.members = await t.board('members');
+                } catch (e) {
+                    console.log('Members not available');
+                    boardData.members = [];
+                }
+                
+                const listSelect = document.getElementById('targetList');
+                listSelect.innerHTML = '<option value="">Use List from CSV</option>';
+                
+                boardData.lists.forEach(list => {
+                    const option = document.createElement('option');
+                    option.value = list.id;
+                    option.textContent = list.name;
+                    listSelect.appendChild(option);
+                });
+                
+                console.log('Board data loaded:', boardData);
+                
+            } catch (error) {
+                console.error('Error loading board data:', error);
+                throw error;
+            }
+        }
+        
+        function showMessage(message, type = 'success') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+        
+        // Switch between tabs
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        // Load and parse CSV file
+        function loadCSV() {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showMessage('Please select a CSV file first', 'error');
+                return;
+            }
+            
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (results.errors.length > 0) {
+                        console.warn('CSV parsing warnings:', results.errors);
+                    }
+                    
+                    csvData = results.data;
+                    csvHeaders = results.meta.fields || Object.keys(csvData[0] || {});
+                    
+                    displayCSVPreview();
+                    setupFieldMapping();
+                    
+                    showMessage(`CSV loaded successfully! ${csvData.length} rows found.`, 'success');
+                },
+                error: function(error) {
+                    console.error('CSV parsing error:', error);
+                    showMessage('Failed to parse CSV file. Please check the format.', 'error');
+                }
+            });
+        }
+        
+        // Display CSV preview
+        function displayCSVPreview() {
+            const preview = document.getElementById('csvPreview');
+            const content = document.getElementById('previewContent');
+            
+            if (!csvData || csvData.length === 0) {
+                content.innerHTML = 'No data found in CSV';
+                return;
+            }
+            
+            let html = '<table><thead><tr>';
+            csvHeaders.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            const previewRows = csvData.slice(0, 5);
+            previewRows.forEach(row => {
+                html += '<tr>';
+                csvHeaders.forEach(header => {
+                    const value = row[header] || '';
+                    html += `<td>${String(value).substring(0, 50)}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            
+            if (csvData.length > 5) {
+                html += `<p><em>... and ${csvData.length - 5} more rows</em></p>`;
+            }
+            
+            content.innerHTML = html;
+            preview.style.display = 'block';
+        }
+        
+        // Setup field mapping interface
+        function setupFieldMapping() {
+            const mappingContainer = document.getElementById('fieldMappings');
+            mappingContainer.innerHTML = '';
+            
+            Object.keys(trelloFields).forEach(fieldKey => {
+                const field = trelloFields[fieldKey];
+                
+                const mappingDiv = document.createElement('div');
+                mappingDiv.className = 'field-mapping';
+                
+                const fieldNameDiv = document.createElement('div');
+                fieldNameDiv.className = 'field-name';
+                fieldNameDiv.textContent = field.label + (field.required ? ' *' : '');
+                
+                const arrowDiv = document.createElement('div');
+                arrowDiv.className = 'arrow';
+                arrowDiv.textContent = '→';
+                
+                const selectDiv = document.createElement('div');
+                selectDiv.className = 'csv-column';
+                
+                const select = document.createElement('select');
+                select.id = `mapping_${fieldKey}`;
+                select.innerHTML = '<option value="">-- Not Mapped --</option>';
+                
+                csvHeaders.forEach(header => {
+                    const option = document.createElement('option');
+                    option.value = header;
+                    option.textContent = header;
+                    
+                    if (autoMatchField(fieldKey, header)) {
+                        option.selected = true;
+                    }
+                    
+                    select.appendChild(option);
+                });
+                
+                selectDiv.appendChild(select);
+                
+                mappingDiv.appendChild(fieldNameDiv);
+                mappingDiv.appendChild(arrowDiv);
+                mappingDiv.appendChild(selectDiv);
+                
+                mappingContainer.appendChild(mappingDiv);
+            });
+        }
+        
+        // Auto-match field names
+        function autoMatchField(trelloField, csvHeader) {
+            const header = csvHeader.toLowerCase();
+            const matches = {
+                'name': ['name', 'title', 'card name', 'task', 'card title'],
+                'desc': ['description', 'desc', 'details', 'summary', 'notes'],
+                'idList': ['list', 'list name', 'column', 'status', 'stage'],
+                'due': ['due date', 'due', 'deadline', 'date due', 'target date'],
+                'labels': ['labels', 'label', 'tags', 'categories', 'tag'],
+                'members': ['assigned to', 'assignee', 'member', 'assigned', 'owner']
+            };
+            
+            return matches[trelloField] && matches[trelloField].some(match => header.includes(match));
+        }
+        
+        // Preview import
+        function previewImport() {
+            const mappings = getFieldMappings();
+            
+            if (!mappings.name) {
+                showMessage('Card Name mapping is required', 'error');
+                return;
+            }
+            
+            const previewData = csvData.slice(0, 3).map(row => {
+                const cardData = {};
+                Object.keys(mappings).forEach(field => {
+                    if (mappings[field]) {
+                        cardData[field] = row[mappings[field]];
+                    }
+                });
+                return cardData;
+            });
+            
+            // Switch to import tab
+            switchTab('import');
+            document.querySelector('.tab:nth-child(3)').classList.add('active');
+            
+            displayImportPreview(previewData);
+        }
+        
+        // Get current field mappings
+        function getFieldMappings() {
+            const mappings = {};
+            Object.keys(trelloFields).forEach(field => {
+                const select = document.getElementById(`mapping_${field}`);
+                if (select && select.value) {
+                    mappings[field] = select.value;
+                }
+            });
+            return mappings;
+        }
+        
+        // Display import preview
+        function displayImportPreview(previewData) {
+            const preview = document.getElementById('importPreview');
+            
+            let html = `<h4>Import Preview (showing ${previewData.length} of ${csvData.length} cards):</h4>`;
+            html += '<div style="max-height: 300px; overflow-y: auto; border: 1px solid #dfe1e6; border-radius: 4px; padding: 12px;">';
+            
+            previewData.forEach((card, index) => {
+                html += `<div style="border-bottom: 1px solid #f0f0f0; padding: 8px 0;">`;
+                html += `<strong>Card ${index + 1}:</strong> ${card.name || 'Untitled'}<br>`;
+                if (card.desc) html += `<em>Description:</em> ${String(card.desc).substring(0, 100)}...<br>`;
+                if (card.due) html += `<em>Due:</em> ${card.due}<br>`;
+                if (card.labels) html += `<em>Labels:</em> ${card.labels}<br>`;
+                html += `</div>`;
+            });
+            
+            html += '</div>';
+            preview.innerHTML = html;
+        }
+        
+        // Execute the import
+        async function executeImport() {
+            const mappings = getFieldMappings();
+            
+            if (!mappings.name) {
+                showMessage('Card Name mapping is required', 'error');
+                return;
+            }
+            
+            const importBtn = document.getElementById('importBtn');
+            const progressDiv = document.getElementById('importProgress');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            importBtn.disabled = true;
+            importBtn.textContent = 'Importing...';
+            progressDiv.style.display = 'block';
+            
+            const results = {
+                success: 0,
+                errors: 0,
+                details: []
+            };
+            
+            try {
+                const defaultListId = document.getElementById('targetList').value;
+                const createLabels = document.getElementById('createLabels').checked;
+                const skipErrors = document.getElementById('skipErrors').checked;
+                
+                for (let i = 0; i < csvData.length; i++) {
+                    const row = csvData[i];
+                    
+                    try {
+                        const cardData = await prepareCardData(row, mappings, defaultListId, createLabels);
+                        await createCard(cardData);
+                        
+                        results.success++;
+                        results.details.push(`Row ${i + 1}: Created "${cardData.name}"`);
+                        
+                    } catch (error) {
+                        results.errors++;
+                        const errorMsg = `Row ${i + 1}: ${error.message}`;
+                        results.details.push(errorMsg);
+                        console.error(errorMsg, error);
+                        
+                        if (!skipErrors) {
+                            throw new Error(`Import stopped at row ${i + 1}: ${error.message}`);
+                        }
+                    }
+                    
+                    const progress = ((i + 1) / csvData.length) * 100;
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `Processing row ${i + 1} of ${csvData.length}`;
+                    
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                displayImportResults(results);
+                
+            } catch (error) {
+                console.error('Import error:', error);
+                showMessage(`Import failed: ${error.message}`, 'error');
+            } finally {
+                importBtn.disabled = false;
+                importBtn.textContent = 'Import All Cards';
+                progressDiv.style.display = 'none';
+            }
+        }
+        
+        // Prepare card data from CSV row
+        async function prepareCardData(row, mappings, defaultListId, createLabels) {
+            const cardData = {
+                name: row[mappings.name] || 'Untitled Card',
+                desc: row[mappings.desc] || '',
+                pos: 'bottom'
+            };
+            
+            // Handle list assignment
+            if (mappings.idList && row[mappings.idList]) {
+                const listName = String(row[mappings.idList]).trim();
+                const list = boardData.lists.find(l => 
+                    l.name.toLowerCase() === listName.toLowerCase()
+                );
+                cardData.idList = list ? list.id : defaultListId;
+            } else {
+                cardData.idList = defaultListId;
+            }
+            
+            if (!cardData.idList) {
+                throw new Error('No target list specified');
+            }
+            
+            // Handle due date
+            if (mappings.due && row[mappings.due]) {
+                const dueDate = new Date(row[mappings.due]);
+                if (!isNaN(dueDate.getTime())) {
+                    cardData.due = dueDate.toISOString();
+                }
+            }
+            
+            // Handle labels
+            if (mappings.labels && row[mappings.labels]) {
+                const labelNames = String(row[mappings.labels])
+                    .split(',')
+                    .map(name => name.trim())
+                    .filter(name => name);
+                
+                cardData.idLabels = [];
+                
+                for (const labelName of labelNames) {
+                    let label = boardData.labels.find(l => 
+                        l.name && l.name.toLowerCase() === labelName.toLowerCase()
+                    );
+                    
+                    if (!label && createLabels) {
+                        try {
+                            label = await createLabel(labelName);
+                            boardData.labels.push(label);
+                        } catch (error) {
+                            console.warn('Failed to create label:', labelName, error);
+                        }
+                    }
+                    
+                    if (label) {
+                        cardData.idLabels.push(label.id);
+                    }
+                }
+            }
+            
+            // Handle member assignment
+            if (mappings.members && row[mappings.members]) {
+                const memberEmails = String(row[mappings.members])
+                    .split(',')
+                    .map(email => email.trim())
+                    .filter(email => email);
+                
+                cardData.idMembers = [];
+                
+                for (const email of memberEmails) {
+                    const member = boardData.members.find(m => 
+                        m.email && m.email.toLowerCase() === email.toLowerCase()
+                    );
+                    
+                    if (member) {
+                        cardData.idMembers.push(member.id);
+                    }
+                }
+            }
+            
+            return cardData;
+        }
+        
+        // Create a card using Trello API
+        async function createCard(cardData) {
+            // Get the token from Trello
+            const token = await t.getRestApi().getToken();
+            
+            const response = await fetch('https://api.trello.com/1/cards', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ...cardData,
+                    key: token
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`Failed to create card: ${response.status} ${error}`);
+            }
+            
+            return await response.json();
+        }
+        
+        // Create a label
+        async function createLabel(name) {
+            const colors = ['green', 'yellow', 'orange', 'red', 'purple', 'blue', 'sky', 'lime', 'pink', 'black'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            const board = await t.board('id');
+            const token = await t.getRestApi().getToken();
+            
+            const response = await fetch(`https://api.trello.com/1/boards/${board.id}/labels`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    color: color,
+                    key: token
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to create label: ${response.status}`);
+            }
+            
+            return await response.json();
+        }
+        
+        // Display import results
+        function displayImportResults(results) {
+            const resultsDiv = document.getElementById('importResults');
+            
+            let html = `<div class="success">
+                <h4>Import Complete!</h4>
+                <p>✅ ${results.success} cards created successfully</p>`;
+            
+            if (results.errors > 0) {
+                html += `<p>⚠️ ${results.errors} rows had errors</p>`;
+            }
+            
+            html += `</div>`;
+            
+            if (results.details.length > 0) {
+                html += `<details style="margin-top: 12px;">
+                    <summary>View detailed results (${results.details.length} items)</summary>
+                    <div style="max-height: 200px; overflow-y: auto; font-size: 12px; margin-top: 8px;">`;
+                
+                results.details.forEach(detail => {
+                    const isError = detail.includes('Error') || detail.includes('Failed');
+                    html += `<div style="padding: 2px 0; color: ${isError ? '#bf2600' : '#164b35'};">${detail}</div>`;
+                });
+                
+                html += `</div></details>`;
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        // Download CSV template
+        function downloadTemplate() {
+            const template = `Card Name,Description,List,Labels,Due Date,Assigned To,Priority,Epic
+Fix login bug,User cannot login with Google OAuth,Bug Fixes,"bug,urgent",2024-12-25,john@example.com,High,Authentication
+Add dark mode toggle,Implement dark theme switching,Features,"feature,ui",,jane@example.com,Medium,UI Improvements
+Write API documentation,Document all REST endpoints,Documentation,documentation,2024-12-20,dev@example.com,Low,API Project
+User onboarding flow,Create guided tour for new users,Features,"feature,ux",2024-12-30,design@example.com,High,Onboarding
+Performance optimization,Optimize database queries,Technical Debt,"performance,backend",,backend@example.com,Medium,Performance`;
+            
+            const blob = new Blob([template], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'trello-import-template.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+        
+        // Initialize when page loads
+        initialize();
+    </script>
+</body>
+</html>
