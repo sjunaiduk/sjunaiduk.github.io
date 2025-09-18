@@ -16,11 +16,10 @@
               text: 'CSV Import',
               callback: function(t) {
                 console.log('CSV Import button clicked');
-                return t.popup({
+                return t.modal({
                   title: 'CSV Card Import',
                   url: './card-creator.html',
-                  height: 800,
-                  width: 1000
+                  fullscreen: true // This makes it full width
                 });
               }
             }];
@@ -44,7 +43,7 @@
             });
           }
         }, {
-          appKey: '1929f0b300e04cf71f3af2ecf9bee287', // You need to get this from Trello
+          appKey: '1929f0b300e04cf71f3af2ecf9bee287',
           appName: 'CSV Import Power-Up'
         });
         
@@ -52,4 +51,3 @@
     </script>
 </body>
 </html>
-      
