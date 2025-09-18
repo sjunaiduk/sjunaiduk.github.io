@@ -19,12 +19,33 @@
                 return t.popup({
                   title: 'CSV Card Import',
                   url: './card-creator.html',
-                  height: 600,
-                  width: 800
+                  height: 700,
+                  width: 900
                 });
               }
             }];
+          },
+          
+          // Add authorization status
+          'authorization-status': function(t, options) {
+            return t.get('member', 'private', 'token')
+            .then(function(token) {
+              return { authorized: !!token };
+            });
+          },
+          
+          // Add show authorization 
+          'show-authorization': function(t, options) {
+            return t.popup({
+              title: 'Authorize CSV Import',
+              url: './authorize.html',
+              height: 200,
+              width: 400
+            });
           }
+        }, {
+          appKey: '1929f0b300e04cf71f3af2ecf9bee287', // You need to get this from Trello
+          appName: 'CSV Import Power-Up'
         });
         
         console.log('PowerUp initialized successfully');
