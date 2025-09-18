@@ -396,18 +396,34 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
             try {
                 console.log('Loading board data...');
                 
-                // Get lists with error handling
+                // Try different methods to get lists
                 try {
+                    // Method 1: Direct lists call
                     boardData.lists = await t.lists('id', 'name', 'pos');
-                    console.log('Lists loaded:', boardData.lists);
-                } catch (error) {
-                    console.error('Error loading lists:', error);
-                    boardData.lists = [];
+                    console.log('Lists loaded via method 1:', boardData.lists);
+                } catch (error1) {
+                    console.warn('Method 1 failed:', error1);
+                    try {
+                        // Method 2: Get lists through board
+                        const board = await t.board('lists');
+                        boardData.lists = board.lists || [];
+                        console.log('Lists loaded via method 2:', boardData.lists);
+                    } catch (error2) {
+                        console.warn('Method 2 failed:', error2);
+                        try {
+                            // Method 3: Get just basic list info
+                            boardData.lists = await t.lists();
+                            console.log('Lists loaded via method 3:', boardData.lists);
+                        } catch (error3) {
+                            console.error('All list loading methods failed');
+                            boardData.lists = [];
+                        }
+                    }
                 }
                 
-                // Sort lists by position
+                // Sort lists by position if they have it
                 if (boardData.lists && boardData.lists.length > 0) {
-                    boardData.lists.sort((a, b) => a.pos - b.pos);
+                    boardData.lists.sort((a, b) => (a.pos || 0) - (b.pos || 0));
                 }
                 
                 // Get board info including labels
@@ -434,21 +450,24 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
                 if (listSelect) {
                     listSelect.innerHTML = '';
                     
-                    if (boardData.lists.length === 0) {
-                        listSelect.innerHTML = '<option value="">No lists found - please create lists in your board</option>';
+                    if (!boardData.lists || boardData.lists.length === 0) {
+                        listSelect.innerHTML = '<option value="">No lists found - check console for errors</option>';
+                        showMessage('Could not load board lists. Check browser console for details.', 'error');
                     } else {
                         listSelect.innerHTML = '<option value="">Use List from CSV</option>';
                         
                         boardData.lists.forEach(list => {
                             const option = document.createElement('option');
                             option.value = list.id;
-                            option.textContent = list.name;
+                            option.textContent = list.name || 'Untitled List';
                             listSelect.appendChild(option);
                         });
+                        
+                        showMessage(`Loaded ${boardData.lists.length} lists successfully!`, 'success');
                     }
                 }
                 
-                console.log('Board data loaded successfully:', boardData);
+                console.log('Final board data:', boardData);
                 
             } catch (error) {
                 console.error('Critical error loading board data:', error);
