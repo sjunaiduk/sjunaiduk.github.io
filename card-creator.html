@@ -253,7 +253,13 @@
                 </div>
                 
                 <div class="form-group">
-                    <button class="btn" onclick="loadCSV()">Load CSV Preview</button>
+                    <label for="csvPaste">Or Paste CSV Data:</label>
+                    <textarea id="csvPaste" placeholder="Paste your CSV data here..." style="height: 120px; font-family: monospace; font-size: 12px;"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <button class="btn" onclick="loadCSV()">Load from File</button>
+                    <button class="btn" onclick="loadPastedCSV()">Load from Paste</button>
                     <button class="btn btn-secondary" onclick="downloadTemplate()">Download Template</button>
                 </div>
                 
@@ -388,33 +394,65 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
         // Load board lists, labels, members
         async function loadBoardData() {
             try {
-                boardData.lists = await t.lists('id', 'name', 'pos');
-                boardData.lists.sort((a, b) => a.pos - b.pos);
+                console.log('Loading board data...');
                 
-                const board = await t.board('id', 'name', 'labels');
-                boardData.labels = board.labels || [];
+                // Get lists with error handling
+                try {
+                    boardData.lists = await t.lists('id', 'name', 'pos');
+                    console.log('Lists loaded:', boardData.lists);
+                } catch (error) {
+                    console.error('Error loading lists:', error);
+                    boardData.lists = [];
+                }
                 
+                // Sort lists by position
+                if (boardData.lists && boardData.lists.length > 0) {
+                    boardData.lists.sort((a, b) => a.pos - b.pos);
+                }
+                
+                // Get board info including labels
+                try {
+                    const board = await t.board('id', 'name', 'labels');
+                    boardData.labels = board.labels || [];
+                    console.log('Labels loaded:', boardData.labels);
+                } catch (error) {
+                    console.error('Error loading board/labels:', error);
+                    boardData.labels = [];
+                }
+                
+                // Get members (optional)
                 try {
                     boardData.members = await t.board('members');
+                    console.log('Members loaded:', boardData.members);
                 } catch (e) {
-                    console.log('Members not available');
+                    console.log('Members not available:', e.message);
                     boardData.members = [];
                 }
                 
+                // Populate list dropdown
                 const listSelect = document.getElementById('targetList');
-                listSelect.innerHTML = '<option value="">Use List from CSV</option>';
+                if (listSelect) {
+                    listSelect.innerHTML = '';
+                    
+                    if (boardData.lists.length === 0) {
+                        listSelect.innerHTML = '<option value="">No lists found - please create lists in your board</option>';
+                    } else {
+                        listSelect.innerHTML = '<option value="">Use List from CSV</option>';
+                        
+                        boardData.lists.forEach(list => {
+                            const option = document.createElement('option');
+                            option.value = list.id;
+                            option.textContent = list.name;
+                            listSelect.appendChild(option);
+                        });
+                    }
+                }
                 
-                boardData.lists.forEach(list => {
-                    const option = document.createElement('option');
-                    option.value = list.id;
-                    option.textContent = list.name;
-                    listSelect.appendChild(option);
-                });
-                
-                console.log('Board data loaded:', boardData);
+                console.log('Board data loaded successfully:', boardData);
                 
             } catch (error) {
-                console.error('Error loading board data:', error);
+                console.error('Critical error loading board data:', error);
+                showMessage('Failed to load board data. Make sure you have access to this board.', 'error');
                 throw error;
             }
         }
@@ -439,6 +477,39 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
             
             document.getElementById(tabName).classList.add('active');
             event.target.classList.add('active');
+        }
+        
+        // Load and parse pasted CSV data
+        function loadPastedCSV() {
+            const pastedData = document.getElementById('csvPaste').value.trim();
+            
+            if (!pastedData) {
+                showMessage('Please paste CSV data first', 'error');
+                return;
+            }
+            
+            Papa.parse(pastedData, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (results.errors.length > 0) {
+                        console.warn('CSV parsing warnings:', results.errors);
+                    }
+                    
+                    csvData = results.data;
+                    csvHeaders = results.meta.fields || Object.keys(csvData[0] || {});
+                    
+                    displayCSVPreview();
+                    setupFieldMapping();
+                    
+                    showMessage(`CSV loaded successfully! ${csvData.length} rows found.`, 'success');
+                },
+                error: function(error) {
+                    console.error('CSV parsing error:', error);
+                    showMessage('Failed to parse CSV data. Please check the format.', 'error');
+                }
+            });
         }
         
         // Load and parse CSV file
