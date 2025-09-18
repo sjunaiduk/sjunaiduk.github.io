@@ -1,0 +1,32 @@
+{
+  "name": "Auto Card Creator",
+  "details": "Streamline your workflow with automated card creation, templates, and bulk operations",
+  "author": "Your Name",
+  "authorEmail": "your.email@example.com",
+  "authorUrl": "https://your-website.com",
+  "overview": "A powerful Trello Power-Up that helps you create cards faster with templates, bulk operations, and automation features.",
+  "icon": {
+    "url": "./icon.png"
+  },
+  "capabilities": [
+    "board-buttons",
+    "card-buttons", 
+    "list-actions",
+    "show-settings"
+  ],
+  "connectors": {
+    "iframe": {
+      "url": "./index.js"
+    }
+  },
+  "tags": [
+    "productivity",
+    "automation",
+    "templates",
+    "workflow"
+  ],
+  "moderatedState": "unclaimed",
+  "supportEmail": "your.email@example.com",
+  "privacyUrl": "https://your-website.com/privacy",
+  "isCompliantWithPrivacyStandards": true
+}
