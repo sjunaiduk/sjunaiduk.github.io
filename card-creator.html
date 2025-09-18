@@ -14,11 +14,10 @@
             font-size: 14px;
         }
         
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+}
         .card {
             background: white;
             border-radius: 8px;
@@ -358,7 +357,11 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
         }
     </script>
     <script>
-        const t = TrelloPowerUp.iframe();
+        // Initialize with iframe context
+        const t = TrelloPowerUp.iframe({
+            appKey: '1929f0b300e04cf71f3af2ecf9bee287', // Replace with your actual API key
+            appName: 'CSV Import Power-Up'
+        });
         
         let csvData = null;
         let csvHeaders = [];
@@ -380,6 +383,31 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
             'customFields': { label: 'Custom Fields', required: false, type: 'custom' }
         };
         
+        // Debug function - expose t to window for testing
+        window.debugTrello = function() {
+            console.log('=== TRELLO DEBUG INFO ===');
+            console.log('t object:', t);
+            console.log('Testing list access...');
+            
+            t.lists('id', 'name').then(lists => {
+                console.log('Direct t.lists result:', lists);
+                lists.forEach((list, i) => {
+                    console.log(`List ${i}:`, {
+                        id: list.id, 
+                        name: list.name, 
+                        pos: list.pos,
+                        keys: Object.keys(list),
+                        fullObject: list
+                    });
+                });
+            }).catch(err => console.error('t.lists error:', err));
+            
+            // Also test board info
+            t.board('id', 'name').then(board => {
+                console.log('Board info:', board);
+            }).catch(err => console.error('Board error:', err));
+        };
+        
         // Initialize the Power-Up
         async function initialize() {
             try {
@@ -396,24 +424,65 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
             try {
                 console.log('Loading board data...');
                 
-                // Try different methods to get lists
+                // First check if we're authorized
+                const isAuthorized = await t.getRestApi().isAuthorized();
+                console.log('Is authorized:', isAuthorized);
+                
+                if (!isAuthorized) {
+                    showMessage('Please authorize the Power-Up first', 'error');
+                    return;
+                }
+                
+                // Try multiple methods to get lists
+                let lists = [];
+                
                 try {
-                    // Method 1: Direct lists call
-                    boardData.lists = await t.lists('id', 'name', 'pos');
-                    console.log('Lists loaded via method 1:', boardData.lists);
+                    // Method 1: Use 'all' to get all list fields
+                    lists = await t.lists('all');
+                    console.log('Lists loaded with all fields:', lists);
+                    if (lists && lists.length > 0 && lists[0].id) {
+                        // Success - we have real list data
+                        boardData.lists = lists;
+                    } else {
+                        throw new Error('Lists loaded but missing id field');
+                    }
                 } catch (error1) {
-                    console.warn('Method 1 failed:', error1);
+                    console.warn('Method 1 (all) failed:', error1);
+                    
                     try {
-                        // Method 2: Get lists through board
-                        const board = await t.board('lists');
-                        boardData.lists = board.lists || [];
-                        console.log('Lists loaded via method 2:', boardData.lists);
+                        // Method 2: Try specific fields one by one
+                        lists = await t.lists('id', 'name', 'pos');
+                        console.log('Lists loaded with specific fields:', lists);
+                        if (lists && lists.length > 0 && lists[0].id) {
+                            boardData.lists = lists;
+                        } else {
+                            throw new Error('Lists loaded but missing data');
+                        }
                     } catch (error2) {
-                        console.warn('Method 2 failed:', error2);
+                        console.warn('Method 2 (specific fields) failed:', error2);
+                        
                         try {
-                            // Method 3: Get just basic list info
-                            boardData.lists = await t.lists();
-                            console.log('Lists loaded via method 3:', boardData.lists);
+                            // Method 3: Try just basic lists call
+                            lists = await t.lists();
+                            console.log('Lists loaded basic call:', lists);
+                            
+                            if (lists && lists.length > 0) {
+                                // Check if we have any real data
+                                const hasRealData = lists.some(list => list.id || list.name);
+                                if (hasRealData) {
+                                    boardData.lists = lists;
+                                } else {
+                                    // Create placeholder data so user can still use the Power-Up
+                                    boardData.lists = lists.map((list, index) => ({
+                                        id: `placeholder-${index}`,
+                                        name: `List ${index + 1}`,
+                                        pos: index
+                                    }));
+                                    showMessage('Lists detected but names unavailable. Please select a target list manually.', 'error');
+                                }
+                            } else {
+                                throw new Error('No lists found');
+                            }
                         } catch (error3) {
                             console.error('All list loading methods failed');
                             boardData.lists = [];
@@ -421,27 +490,27 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
                     }
                 }
                 
-                // Sort lists by position if they have it
+                // Sort lists by position if available
                 if (boardData.lists && boardData.lists.length > 0) {
                     boardData.lists.sort((a, b) => (a.pos || 0) - (b.pos || 0));
                 }
                 
-                // Get board info including labels
+                // Get labels
                 try {
                     const board = await t.board('id', 'name', 'labels');
                     boardData.labels = board.labels || [];
-                    console.log('Labels loaded:', boardData.labels);
+                    console.log('Labels loaded:', boardData.labels.length);
                 } catch (error) {
-                    console.error('Error loading board/labels:', error);
+                    console.error('Error loading labels:', error);
                     boardData.labels = [];
                 }
                 
-                // Get members (optional)
+                // Get members
                 try {
                     boardData.members = await t.board('members');
                     console.log('Members loaded:', boardData.members);
                 } catch (e) {
-                    console.log('Members not available:', e.message);
+                    console.log('Members not available');
                     boardData.members = [];
                 }
                 
@@ -451,8 +520,8 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
                     listSelect.innerHTML = '';
                     
                     if (!boardData.lists || boardData.lists.length === 0) {
-                        listSelect.innerHTML = '<option value="">No lists found - check console for errors</option>';
-                        showMessage('Could not load board lists. Check browser console for details.', 'error');
+                        listSelect.innerHTML = '<option value="">No lists found - please create lists in your board</option>';
+                        showMessage('No lists found. Please create some lists in your Trello board first.', 'error');
                     } else {
                         listSelect.innerHTML = '<option value="">Use List from CSV</option>';
                         
@@ -471,7 +540,7 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
                 
             } catch (error) {
                 console.error('Critical error loading board data:', error);
-                showMessage('Failed to load board data. Make sure you have access to this board.', 'error');
+                showMessage('Failed to load board data. Please check console and try authorizing again.', 'error');
                 throw error;
             }
         }
