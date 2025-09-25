@@ -1,0 +1,4 @@
+Card Name,Description,List,Labels,Due Date,Assigned To,Priority,Epic,Subtasks
+Fix login bug,User cannot login with Google OAuth,Bug Fixes,"bug,urgent",2024-12-25,john@example.com,High,Authentication,"Reproduce bug,Check OAuth settings,Fix authentication flow,Test with different browsers"
+Add dark mode toggle,Implement dark theme switching,Features,"feature,ui",,jane@example.com,Medium,UI Improvements,"Design dark theme colors,Update CSS variables,Add theme toggle button,Test accessibility"
+Write API documentation,Document all REST endpoints,Documentation,documentation,2024-12-20,dev@example.com,Low,API Project,"List all endpoints,Write endpoint descriptions,Add code examples,Review documentation"

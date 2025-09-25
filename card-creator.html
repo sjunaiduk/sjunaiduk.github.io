@@ -272,10 +272,12 @@
                 
                 <div class="example">
 <strong>Example CSV Format:</strong>
-Card Name,Description,List,Labels,Due Date,Assigned To,Priority,Epic
-Fix login bug,User cannot login with Google,Bug Fixes,"bug,urgent",2024-12-25,john@example.com,High,Authentication
-Add dark mode,Implement dark theme toggle,Features,"feature,ui",,jane@example.com,Medium,UI Improvements
-Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-20,,Low,API Project
+Card Name,Description,List,Labels,Due Date,Assigned To,Priority,Epic,Subtasks
+Fix login bug,User cannot login with Google,Bug Fixes,"bug,urgent",2024-12-25,john@example.com,High,Authentication,"Reproduce bug,Check OAuth settings,Fix authentication flow"
+Add dark mode,Implement dark theme toggle,Features,"feature,ui",,jane@example.com,Medium,UI Improvements,"Design colors,Update CSS,Add toggle button"
+Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-20,,Low,API Project,"List endpoints,Write descriptions,Add examples"
+
+<strong>Note:</strong> Subtasks should be separated by commas. Each subtask becomes a checkable item in the card's checklist.
                 </div>
             </div>
             
@@ -383,6 +385,7 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
             'due': { label: 'Due Date', required: false, type: 'date' },
             'labels': { label: 'Labels', required: false, type: 'labels' },
             'members': { label: 'Assigned Members', required: false, type: 'members' },
+            'subtasks': { label: 'Subtasks/Checklist', required: false, type: 'checklist' },
             'customFields': { label: 'Custom Fields', required: false, type: 'custom' }
         };
         
@@ -732,7 +735,8 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
                 'idList': ['list', 'list name', 'column', 'status', 'stage'],
                 'due': ['due date', 'due', 'deadline', 'date due', 'target date'],
                 'labels': ['labels', 'label', 'tags', 'categories', 'tag'],
-                'members': ['assigned to', 'assignee', 'member', 'assigned', 'owner']
+                'members': ['assigned to', 'assignee', 'member', 'assigned', 'owner'],
+                'subtasks': ['subtasks', 'checklist', 'tasks', 'todo', 'todos', 'action items']
             };
             
             return matches[trelloField] && matches[trelloField].some(match => header.includes(match));
@@ -789,6 +793,10 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
                 if (card.desc) html += `<em>Description:</em> ${String(card.desc).substring(0, 100)}...<br>`;
                 if (card.due) html += `<em>Due:</em> ${card.due}<br>`;
                 if (card.labels) html += `<em>Labels:</em> ${card.labels}<br>`;
+                if (card.subtasks) {
+                    const subtaskList = String(card.subtasks).split(',').map(task => task.trim()).slice(0, 3);
+                    html += `<em>Subtasks:</em> ${subtaskList.join(', ')}${subtaskList.length < String(card.subtasks).split(',').length ? '...' : ''}<br>`;
+                }
                 html += `</div>`;
             });
             
@@ -830,10 +838,23 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
                     
                     try {
                         const cardData = await prepareCardData(row, mappings, defaultListId, createLabels);
-                        await createCard(cardData);
-                        
+                        const createdCard = await createCard(cardData);
+
                         results.success++;
-                        results.details.push(`Row ${i + 1}: Created "${cardData.name}"`);
+                        let statusMessage = `Row ${i + 1}: Created "${cardData.name}"`;
+
+                        // Create checklist if subtasks are specified
+                        if (mappings.subtasks && row[mappings.subtasks]) {
+                            try {
+                                await createCardChecklist(createdCard.id, row[mappings.subtasks]);
+                                statusMessage += ' (with checklist)';
+                            } catch (checklistError) {
+                                console.error(`Failed to create checklist for card "${cardData.name}":`, checklistError);
+                                statusMessage += ' (checklist failed)';
+                            }
+                        }
+
+                        results.details.push(statusMessage);
                         
                     } catch (error) {
                         results.errors++;
@@ -985,10 +1006,10 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
         async function createLabel(name) {
             const colors = ['green', 'yellow', 'orange', 'red', 'purple', 'blue', 'sky', 'lime', 'pink', 'black'];
             const color = colors[Math.floor(Math.random() * colors.length)];
-            
+
             const board = await t.board('id');
             const token = await t.getRestApi().getToken();
-            
+
             // Try URL parameters instead of body
             const params = new URLSearchParams({
                 key: '1929f0b300e04cf71f3af2ecf9bee287',
@@ -996,21 +1017,97 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
                 name: name,
                 color: color
             });
-            
+
             const response = await fetch(`https://api.trello.com/1/boards/${board.id}/labels?${params}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 }
             });
-            
+
             if (!response.ok) {
                 const error = await response.text();
                 console.error('Label creation error:', error);
                 throw new Error(`Failed to create label: ${response.status}`);
             }
-            
+
             return await response.json();
+        }
+
+        // Create checklist for a card with subtasks
+        async function createCardChecklist(cardId, subtasksData) {
+            const token = await t.getRestApi().getToken();
+
+            // Parse subtasks from CSV data (comma-separated or semicolon-separated)
+            const subtasks = String(subtasksData)
+                .split(/[,;]/)
+                .map(task => task.trim())
+                .filter(task => task.length > 0);
+
+            if (subtasks.length === 0) {
+                console.log('No valid subtasks found');
+                return;
+            }
+
+            // Create the checklist first
+            const checklistParams = new URLSearchParams({
+                key: '1929f0b300e04cf71f3af2ecf9bee287',
+                token: token,
+                idCard: cardId,
+                name: 'Tasks',
+                pos: 'top'
+            });
+
+            const checklistResponse = await fetch(`https://api.trello.com/1/checklists?${checklistParams}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!checklistResponse.ok) {
+                const error = await checklistResponse.text();
+                console.error('Checklist creation error:', error);
+                throw new Error(`Failed to create checklist: ${checklistResponse.status}`);
+            }
+
+            const checklist = await checklistResponse.json();
+            console.log('Created checklist:', checklist.id);
+
+            // Add each subtask as a checklist item
+            for (let i = 0; i < subtasks.length; i++) {
+                const subtask = subtasks[i];
+
+                const itemParams = new URLSearchParams({
+                    key: '1929f0b300e04cf71f3af2ecf9bee287',
+                    token: token,
+                    name: subtask,
+                    pos: 'bottom'
+                });
+
+                try {
+                    const itemResponse = await fetch(`https://api.trello.com/1/checklists/${checklist.id}/checkItems?${itemParams}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+
+                    if (!itemResponse.ok) {
+                        const error = await itemResponse.text();
+                        console.error(`Failed to add checklist item "${subtask}":`, error);
+                    } else {
+                        console.log(`Added subtask: ${subtask}`);
+                    }
+                } catch (error) {
+                    console.error(`Error adding subtask "${subtask}":`, error);
+                }
+
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            return checklist;
         }
         
         // Display import results
@@ -1045,12 +1142,12 @@ Write API docs,Document all REST endpoints,Documentation,documentation,2024-12-2
         
         // Download CSV template
         function downloadTemplate() {
-            const template = `Card Name,Description,List,Labels,Due Date,Assigned To,Priority,Epic
-Fix login bug,User cannot login with Google OAuth,Bug Fixes,"bug,urgent",2024-12-25,john@example.com,High,Authentication
-Add dark mode toggle,Implement dark theme switching,Features,"feature,ui",,jane@example.com,Medium,UI Improvements
-Write API documentation,Document all REST endpoints,Documentation,documentation,2024-12-20,dev@example.com,Low,API Project
-User onboarding flow,Create guided tour for new users,Features,"feature,ux",2024-12-30,design@example.com,High,Onboarding
-Performance optimization,Optimize database queries,Technical Debt,"performance,backend",,backend@example.com,Medium,Performance`;
+            const template = `Card Name,Description,List,Labels,Due Date,Assigned To,Priority,Epic,Subtasks
+Fix login bug,User cannot login with Google OAuth,Bug Fixes,"bug,urgent",2024-12-25,john@example.com,High,Authentication,"Reproduce bug,Check OAuth settings,Fix authentication flow,Test with different browsers"
+Add dark mode toggle,Implement dark theme switching,Features,"feature,ui",,jane@example.com,Medium,UI Improvements,"Design dark theme colors,Update CSS variables,Add theme toggle button,Test accessibility"
+Write API documentation,Document all REST endpoints,Documentation,documentation,2024-12-20,dev@example.com,Low,API Project,"List all endpoints,Write endpoint descriptions,Add code examples,Review documentation"
+User onboarding flow,Create guided tour for new users,Features,"feature,ux",2024-12-30,design@example.com,High,Onboarding,"Design onboarding screens,Write helpful tips,Implement guided tour,Test user experience"
+Performance optimization,Optimize database queries,Technical Debt,"performance,backend",,backend@example.com,Medium,Performance,"Profile slow queries,Add database indexes,Optimize N+1 queries,Monitor performance improvements"`;
             
             const blob = new Blob([template], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
